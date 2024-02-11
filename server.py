@@ -1,17 +1,14 @@
-import socket
+from flask import Flask, request
 
-HOST = '127.0.0.1'
-PORT = 5001
+app = Flask(__name__)
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.bind((HOST, PORT))
-    s.listen()
-    print(f"Server listening on {HOST}: {PORT}")
 
-    client_socket, address = s.accept()
+@app.route('/', methods=['POST'])
+def print_text():
+    text = request.form['text']
+    print(text)
+    return 'Text printed'
 
-    while True:
-        data = socket.recv(1024)
-        if not data:
-            break
-        print(data.decode())
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=80, debug=True)

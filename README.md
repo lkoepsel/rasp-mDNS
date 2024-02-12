@@ -1,20 +1,20 @@
 # Raspberry Pi Startup Solution
 
 ## Description
-A possible solution for identifying newly programmed Raspberry Pi's on the network. In a large network situation (ex: community college), the wireless network might have two issues:
+A possible solution for identifying newly programmed *Raspberry Pi*'s on the network. In a large network situation (*ex: community college*), the wireless network might have two issues:
 
-1. The network is quite large, making it difficult to readily identify a Raspberry Pi which has recently joined the network
-2. The wireless network might run sans password, which previously wasn't easily handled by the Raspberry Pi Imager software.
+1. The network is quite large, making it difficult to readily identify a *Raspberry Pi* which has recently joined the network
+2. The wireless network might run sans password, which previously wasn't easily handled by the *Raspberry Pi Imager* software.
 
-This solution uses version 1.8.3 or later of the Raspberry Pi Imager application to create an image which allows for a blank password to the wireless network. And it assigns a unique host name to make it easily identifiable, once it connects to the network.
+This solution uses version *1.8.3* or later of the *Raspberry Pi Imager* application to create an image which allows for a blank password to the wireless network. And it assigns a unique host name to make it easily identifiable, once it connects to the network.
 
 ## Solution
 The solution consists of two steps:
 
-1. Attempt to connect on startup using the *Bonjour* service. This uses the existing solution of [*Raspberry Pi Bonjour*]() to connect with the Pi. It can work quite well and is the best solution. However, it doesn't always work. And when it doesn't there needs to be a remediation step.
+1. Attempt to connect on startup using the *multicast DNS* service. This uses the existing solution of [*Raspberry Pi avahi/zeroconfig/Bonjour*](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns) to connect with the Pi. It can work quite well and is the best solution. However, it doesn't always work. And when it doesn't there needs to be a remediation step.
 2. The remediation is to use a local ethernet connection (or sometimes serial) to put a startup application on the Pi, such that it pings a local server with its host name and IP address.
 
-## Steps
+## Steps to Manually Ping a Server from the boot of a Raspberry Pi
 ### 1. Python hello.py service (on Raspberry Pi)
 This will ping a **known** server by *IP address* and report **its** host name and IP address.
 #### Installation
@@ -27,7 +27,7 @@ This will ping a **known** server by *IP address* and report **its** host name a
     import socket
 
 
-    # set logging to DEBUG, if not showing up
+    # set logging to DEBUG, if having issues with the app starting
     logging.basicConfig(level=logging.WARNING)
     logging.debug('hello.py: Begin')
 
@@ -120,38 +120,57 @@ Hello from pitwo
 Hello from pisan
 192.168.1.76 - - [11/Feb/2024 06:46:41] "POST / HTTP/1.1" 200 -
 ```
-
+## Notes
+1. If the *Raspberry Pi* isn't connecting, it might be a problem with startup. Reconnect with the *Pi* locally, using an ethernet or serial connection and use `journalctl -b` to examine the startup log. Changing the *logging to DEBUG* in the *hello.py* application, might help as well.
+2. 
 ## Additional Raspberry Pi Research
 ## Links
+* [Use Network Manager to print everything about the Pi's Network Interface](https://www.raspberrypi.com/documentation/computers/remote-access.html#network-manager)
 * [Howto: ethernet gadget on Pi4B USB C](https://forums.raspberrypi.com/viewtopic.php?t=245810)
 * [Five Ways to Run a Program On Your Raspberry Pi At Startup](https://www.dexterindustries.com/howto/run-a-program-on-your-raspberry-pi-at-startup/)
+* [Name your PIs with mDNS](https://bloggerbrothers.com/2017/01/08/name-your-pis-with-mdns-forget-the-ips-with-zeroconf/)
+* [StackExchange mDNS Pi](https://raspberrypi.stackexchange.com/questions/117206/reaching-my-pi-with-mdns-avahi)
+* [Raspberry Pi Resolving .local](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns)
+* [Listing Bonjour Services](https://www.ralfebert.com/macos/listing-bonjour-services/)
+* [Pentesting mDNS](https://book.hacktricks.xyz/network-services-pentesting/5353-udp-multicast-dns-mdns)
+* [Five Ways to Run a Program On Your Raspberry Pi At Startup](https://www.dexterindustries.com/howto/run-a-program-on-your-raspberry-pi-at-startup/)
+* [avahi-daemon(8): Avahi mDNS/DNS-SD daemon - Linux man page](https://linux.die.net/man/8/avahi-daemon)
+* [avahi-daemon.conf(5): avahi-daemon config file - Linux man page](https://linux.die.net/man/5/avahi-daemon.conf)
+* [Difference Between resolve.conf, systemd-resolve, and Avahi | Baeldung on Linux](https://www.baeldung.com/linux/resolve-conf-systemd-avahi)
+  4.3. Avahi Services
+  The Avahi zeroconf browser will show the various services on our network. Further, we can browse SSH and VNC servers using bssh and bvnc, respectively. Avahi advertises the *.service files found in /etc/avahi/service. Besides, the Avahi user/group should be able to read files in this directory. We can easily create our own if we want to advertise a service without the *.service file. Let’s look at an example of an Avahi file that advertises a regular FTP server – vsftpd:
+  `/etc/avahi/services/ftp.service`
+    ```xml
+    <?XML version="1.0" standalone=’no’?>
+    <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+    <service-group>
+    <name>FTP file sharing</name>
+    <service>
+    <type>_ftp._tcp</type>
+    <port>21</port>
+    </service>
+    </service-group>
+    ```
+  This file allows Avahi to advertise the FTP server. As a result, we should be able to find the FTP server from a file manager on another computer within our network. We also need to enable hostname resolution on the client.
+[Avahi - Debian Wiki](https://wiki.debian.org/Avahi)
+* To resolve a hostname to an IPv4 address with avahi-resolve:
+  `avahi-resolve -n -4 <host>.local`
+* The reverse process is performed with:
+  `avahi-resolve -a 192.168.7.235`
+  avahi-resolve obtains an IP address or hostname directly from the mDNS multicast from hosts. It does not use the NSS functionality of libnss-mdns.
+* Using avahi-browse:
+  For a complete view of services and hosts on the network:
+  `avahi-browse -art | less`
+* For example, install the following ssh service in  /etc/avahi/services/ssh.service
+    ```xml
+    <?xml version="1.0" standalone='no'?><!--*-nxml-*-->
+    <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+    <service-group>
+    <name replace-wildcards="yes">%h SSH</name>
+    <service>
+    <type>_ssh._tcp</type>
+    <port>22</port>
+    </service>
+    </service-group>
+    ```
 
-## Steps
-1. Write appropriate image to card
-2. Open firstrun.sh:
-   1. remove text in second parameter after mpc-wifi 
-   2. change psk='......' to 'key_mgmt=NONE
-### Optional Use to add Serial port connection
-3. Add *dtoverlay=dwc2* to end of **config.txt**
-4. Add *modules-load=dwc2,g_ether* to **cmdline.txt**, after root wait
-5. 
-## Successful Connection
-```bash
-wlan0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 172.24.1.226  netmask 255.255.0.0  broadcast 172.24.255.255
-        inet6 fe80::3e4d:f30e:ac89:3eba  prefixlen 64  scopeid 0x20<link>
-        ether b8:27:eb:3f:3c:0f  txqueuelen 1000  (Ethernet)
-        RX packets 15116  bytes 4016901 (3.8 MiB)
-        RX errors 0  dropped 0  overruns 0  frame 0
-        TX packets 60  bytes 5855 (5.7 KiB)
-        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
-
-## Failed Connection
-```bash
-wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
-        ether b8:27:eb:3f:3c:0f  txqueuelen 1000  (Ethernet)
-        RX packets 0  bytes 0 (0.0 B)
-        RX errors 0  dropped 0  overruns 0  frame 0
-        TX packets 0  bytes 0 (0.0 B)
-        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
-```

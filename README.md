@@ -1,26 +1,32 @@
 # Raspberry Pi Startup Solution
 
 ## Description
-A possible solution for identifying newly programmed *Raspberry Pi*'s on the network. In a large network situation (*ex: community college*), the wireless network might have two issues:
+A possible solution for identifying newly programmed *Raspberry Pi (RPI)*'s on the network. In a large network situation (*ex: community college*), the wireless network might have two issues:
 
-1. The network is quite large, making it difficult to readily identify a *Raspberry Pi* which has recently joined the network
+1. The network is quite large, making it difficult to readily identify a *RPi* which has recently joined the network
 2. The wireless network might run sans password, which previously wasn't easily handled by the *Raspberry Pi Imager* software.
 
-This solution uses version *1.8.3* or later of the *Raspberry Pi Imager* application to create an image which allows for a blank password to the wireless network. And it assigns a unique host name to make it easily identifiable, once it connects to the network.
+This solution uses version *1.8.3* or later of the *RPi Imager* application to create an image which allows for a blank password to the wireless network. And it assigns a unique host name to make it easily identifiable, once it connects to the network.
 
 ## Solution
 The solution consists of two steps:
 
-1. Attempt to connect on startup using the *multicast DNS* service. This uses the existing solution of [*Raspberry Pi avahi/zeroconfig/Bonjour*](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns) to connect with the Pi. It can work quite well and is the best solution. However, it doesn't always work. And when it doesn't there needs to be a remediation step.
+1. Attempt to connect on startup using the *multicast DNS* service. This uses the existing solution of [*RPi avahi/zeroconfig/Bonjour*](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns) to connect with the Pi. It can work quite well and is the best solution. However, it doesn't always work. And when it doesn't there needs to be a remediation step.
 2. The remediation is to use a local ethernet connection (or sometimes serial) to put a startup application on the Pi, such that it pings a local server with its host name and IP address.
 
 ## Steps to Manually Ping a Server from the boot of a Raspberry Pi
 ### 1. Python hello.py service (on Raspberry Pi)
-This will ping a **known** server by *IP address* and report **its** host name and IP address.
+This will ping a **known** server by *IP address* and report **its** host name and IP address. 
+
+**This step requires the ability to connect locally to the RPi.** There are two *easy* solutions:
+* **Connect via ethernet**, by connecting an ethernet cable directly between your PC and the RPi. With this connection, you will be able to easily login using `ssh hostname.local`, replacing *hostname* with the name you used in *RPi Imager "Set hostname"*.
+* **Connect via USB console using USB cable, keyboard and monitor** - Standard method of using RPi as a computer.
+A **less easy solution** is to possibly connect via *USB Gadget*, for [Pi Zero](https://learn.adafruit.com/turning-your-raspberry-pi-zero-into-a-usb-gadget/ethernet-gadget), or [ethernetgadget.pdf]( https://github.com/thagrol/Guides) or using a [Pi 4](https://forums.raspberrypi.com/viewtopic.php?t=245810).
 #### Installation
-1. In a folder of your choosing, `nano hello.py` then copy/paste contents below into file:
+C
+1. On the RPi In a folder of your choosing, `nano hello.py` then copy/paste contents below into file:
     ```python
-    # run on Raspberry Pi, once connected
+    # run on RPi, once connected
     # will attempt to connect to server with hostname and address
     import logging
     import requests
@@ -49,7 +55,7 @@ This will ping a **known** server by *IP address* and report **its** host name a
 2. Exit nano using *Ctrl-S* *Ctrl-X*
 3. `chmod +x hello.py`
 ### 2. Setup `systemd` unit file for hello.py service
-This will execute the hello.py app, after all other startup services have been launched on the Raspberry Pi.
+This will execute the hello.py app, after all other startup services have been launched on the RPi.
 #### Installation
 1. `sudo nano /lib/systemd/system/hello.service` then copy/paste contents below into file
     ```bash
@@ -74,7 +80,7 @@ This will execute the hello.py app, after all other startup services have been l
     ```
 
 ### 3. Python server.py app (on Server)
-This will listen for all connections to it as a server and will print the host name and IP address when it is contacted by the *hello.py* client. Run this on your PC, make sure your are on the same network as the Raspberry Pi wireless connection.
+This will listen for all connections to it as a server and will print the host name and IP address when it is contacted by the *hello.py* client. Run this on your PC, make sure your are on the same network as the RPi wireless connection.
 #### Installation
 1. `sudo nano server.py` then copy/paste contents below into file:
 
@@ -98,7 +104,10 @@ This will listen for all connections to it as a server and will print the host n
     ```
 2. Exit nano using *Ctrl-S* *Ctrl-X*
 3. `chmod +x server.py` then `python server.py`
-To close the server, once the Raspberry Pi has connected, *Ctrl-C*
+
+The server will be running and listening on your PC. **Reboot** your *RPi* and it will connect to the server with its host name and IP address.
+
+To close the server, once the RPi has connected, *Ctrl-C*
 
 #### Example Output of server.py:
 ```bash
@@ -121,8 +130,8 @@ Hello from pisan
 192.168.1.76 - - [11/Feb/2024 06:46:41] "POST / HTTP/1.1" 200 -
 ```
 ## Notes
-1. If the *Raspberry Pi* isn't connecting, it might be a problem with startup. Reconnect with the *Pi* locally, using an ethernet or serial connection and use `journalctl -b` to examine the startup log. Changing the *logging to DEBUG* in the *hello.py* application, might help as well.
-2. 
+1. If the *RPi* isn't connecting, it might be a problem with startup. Reconnect with the *Pi* locally, using an ethernet or serial connection and use `journalctl -b` to examine the startup log. Changing the *logging to DEBUG* in the *hello.py* application, might help as well.
+2. When using *RPi Imager* software, use *Shift-Ctrl-X* to bring up the options screen.
 ## Additional Raspberry Pi Research
 ## Links
 * [Use Network Manager to print everything about the Pi's Network Interface](https://www.raspberrypi.com/documentation/computers/remote-access.html#network-manager)

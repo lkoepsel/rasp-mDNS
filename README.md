@@ -1,48 +1,69 @@
 # Raspberry Pi Startup Solution
 
 ## Description
-A possible solution for identifying newly programmed *Raspberry Pi (RPI)*'s on the network. In a large network situation (*ex: community college*), the wireless network might have two issues:
+This is a possible solution for identifying freshly programmed (and headless) *Raspberry Pi (RPI)*'s on a large network. In a large networks (*ex: community college*), the wireless network might have two issues:
 
-1. The network is quite large, making it difficult to readily identify a *RPi* which has recently joined the network
-2. The wireless network might run sans password, which previously wasn't easily handled by the *Raspberry Pi Imager* software.
+1. As network is quite large, it can be difficult to readily identify a *RPi* which has recently joined the network, therefore making it almost impossible to connect to the *RPi*.
+2. The wireless network might also use a blank password, which previously wasn't easily handled by the *Raspberry Pi Imager* software.
 
-This solution uses version *1.8.3* or later of the *RPi Imager* application to create an image which allows for a blank password to the wireless network. And it assigns a unique host name to make it easily identifiable, once it connects to the network.
+This solution uses version *1.8.3* or later of the *RPi Imager* application to create an image which allows for a blank password to the wireless network. It also assigns a unique host name to make it easily identifiable, once it connects to the network.
 
 ## Solution
-The solution consists of two steps:
+The solution consists of two steps and an optional backup step:
 
-1. Attempt to connect on startup using the *multicast DNS* service. This uses the existing solution of [*RPi avahi/zeroconfig/Bonjour*](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns) to connect with the Pi. It can work quite well and is the best solution. However, it doesn't always work. And when it doesn't there needs to be a remediation step.
-2. The remediation is to use a local ethernet connection (or sometimes serial) to put a startup application on the Pi, such that it pings a local server with its host name and IP address.
+1. Attempt to connect on startup using the *multicast DNS* service. This uses the existing solution of [*avahi aka zeroconfig or Bonjour*](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns) to connect with the *RPi*. It can work quite well and is the best solution. However, it doesn't always work. And when it doesn't there needs to be a remediation step.
 
-## Steps to Manually Ping a Server from the boot of a Raspberry Pi
+    Using the username and hostname you used in programming the SD card with the *Pi Imager* application, try:
+    ```bash
+    ssh username@hostname.local
+    ```
+2. In large networks this might take a while or not work at all. To mitigate this issue, try this command: (*replace hostname with the name you provided when programming the SD card*). This command tends to work faster than attempting to login immediately.
+    ```bash
+    dns-sd -G v4 hostname.local
+    DATE: ---Tue 13 Feb 2024---
+    16:32:22.348  ...STARTING...
+    Timestamp     A/R  Flags         IF  Hostname                               Address                                      TTL
+    16:32:51.715  Add  2             17  pisan.local.                           192.168.1.6                                  120
+    ```
+    Notice that the IP address is provided in the second line of *192.168.1.6*
+
+    ```bash
+    # Connect to the board using the IP address
+    ssh 192.168.1.6
+    # after a warning regarding the "...authenticity of host..." and a few seconds, you will see the CLI prompt.
+    ```
+
+**Optional** - An optional insurance step is to utilize this connection to implement an auto-connecting application as a startup application on the *RPi*. This application will ping a local server with its host name and IP address. This ensures you have ready access to the *RPi* without having to go through determing its IP addrss again. This is particularly important when you move to a new network.
+
+## (Optional) Startup Application to Automatically Ping a Server
+These steps will implement a small startup application on the *RPi* which pings a known IP address with its hostname and IP address.  The server's IP address is saved in the *boot* folder of the *RPi* SD card, making it easy to update.
 ### 1. Python hello.py service (on Raspberry Pi)
-This will ping a **known** server by *IP address* and report **its** host name and IP address. 
+Create a startup application, which will ping a server by *IP address* and report **its own** host name and IP address.
 
-**This step requires the ability to connect locally to the RPi.** There are two *easy* solutions:
-* **Connect via ethernet**, by connecting an ethernet cable directly between your PC and the RPi. With this connection, you will be able to easily login using `ssh hostname.local`, replacing *hostname* with the name you used in *RPi Imager "Set hostname"*.
-* **Connect via USB console using USB cable, keyboard and monitor** - Standard method of using RPi as a computer.
-A **less easy solution** is to possibly connect via *USB Gadget*, for [Pi Zero](https://learn.adafruit.com/turning-your-raspberry-pi-zero-into-a-usb-gadget/ethernet-gadget), or [ethernetgadget.pdf]( https://github.com/thagrol/Guides) or using a [Pi 4](https://forums.raspberrypi.com/viewtopic.php?t=245810).
 #### Installation
-C
-1. On the RPi In a folder of your choosing, `nano hello.py` then copy/paste contents below into file:
+1. On your *RPi* in your home folder (*/home/username/*), `nano hello.py` then copy/paste contents below into file:
     ```python
-    # run on RPi, once connected
-    # will attempt to connect to server with hostname and address
     import logging
     import requests
     import socket
+    import os
 
 
-    # set logging to DEBUG, if having issues with the app starting
-    logging.basicConfig(level=logging.WARNING)
+    # set logging to DEBUG, if not showing up
+    logging.basicConfig(level=logging.DEBUG)
     logging.debug('hello.py: Begin')
+
+    os.system("sudo mount /dev/mmcblk0p1 /boot")
+    with open("/boot/ip.txt", "r") as f:
+        ip = f.read().rstrip("\n")
+    os.system("sudo umount /boot")
 
     host_name = socket.gethostname()
     logging.debug("Host name: %s  ", host_name)
 
-    # url must be the URL of the host server
-    url = 'http://192.168.1.124'
+    url = 'http://' + ip
     text = f"Hello from {host_name}"
+    logging.debug(url)
 
     data = {'text': text}
 
@@ -53,11 +74,12 @@ C
     ```
 
 2. Exit nano using *Ctrl-S* *Ctrl-X*
-3. `chmod +x hello.py`
 ### 2. Setup `systemd` unit file for hello.py service
-This will execute the hello.py app, after all other startup services have been launched on the RPi.
+This will execute the hello.py app, after all other startup services have been executed on the RPi. 
+
+If you have issues with determining if this service is executing properly, use the command `journalctl -b`, to see all boot messages of the *RPi*. You will have to go towards then end (approximately 500+ lines) to see the appropriate lines. Look for the word DEBUG as the *hello.py* application uses logging to print messages.
 #### Installation
-1. `sudo nano /lib/systemd/system/hello.service` then copy/paste contents below into file
+1. `sudo nano /lib/systemd/system/hello.service` then copy/paste contents below into the file:
     ```bash
     [Unit]
      Description=Hello
@@ -78,7 +100,15 @@ This will execute the hello.py app, after all other startup services have been l
       sudo systemctl daemon-reload
       sudo systemctl enable hello.service
     ```
-
+#### Add IP address of the server on the Boot folder
+An example of *ip.txt* in in this repository, the directions to create it on the *RPi* are the following:
+```bash
+sudo mount /dev/mmcblk0p1 /boot
+sudo nano /boot/ip.txt
+# enter the IP address of your PC WITHOUT a return at the end of the line
+# Exit nano using *Ctrl-S* *Ctrl-X*
+sudo umount /boot
+```
 ### 3. Python server.py app (on Server)
 This will listen for all connections to it as a server and will print the host name and IP address when it is contacted by the *hello.py* client. Run this on your PC, make sure your are on the same network as the RPi wireless connection.
 #### Installation
@@ -103,11 +133,11 @@ This will listen for all connections to it as a server and will print the host n
         app.run(host='0.0.0.0', port=80, debug=True)
     ```
 2. Exit nano using *Ctrl-S* *Ctrl-X*
-3. `chmod +x server.py` then `python server.py`
+3. `python server.py`
 
-The server will be running and listening on your PC. **Reboot** your *RPi* and it will connect to the server with its host name and IP address.
+The server will run and listening for the *RPi* on your PC. **Reboot** your *RPi* and it will connect to the server with its host name and IP address.
 
-To close the server, once the RPi has connected, *Ctrl-C*
+Once the RPi has connected and the IP address has been identified, *Ctrl-C* to exit the server program.
 
 #### Example Output of server.py:
 ```bash
@@ -131,6 +161,8 @@ Hello from pisan
 ```
 ## Notes
 1. If the *RPi* isn't connecting, it might be a problem with startup. Reconnect with the *Pi* locally, using an ethernet or serial connection and use `journalctl -b` to examine the startup log. Changing the *logging to DEBUG* in the *hello.py* application, might help as well.
+1. Implementing the optional solution, allows you to change networks and identify your PC's new IP address. Mount the SD card on your PC and edit /bootfs/ip.txt, replacing the IP address with the new one. Put the SD card back into the *RPi*, run `python server.py` then boot the *RPi*. It will ping your server with its new address.
+
 2. When using *RPi Imager* software, use *Shift-Ctrl-X* to bring up the options screen.
 ## Additional Raspberry Pi Research
 ## Links
@@ -145,6 +177,8 @@ Hello from pisan
 * [Five Ways to Run a Program On Your Raspberry Pi At Startup](https://www.dexterindustries.com/howto/run-a-program-on-your-raspberry-pi-at-startup/)
 * [avahi-daemon(8): Avahi mDNS/DNS-SD daemon - Linux man page](https://linux.die.net/man/8/avahi-daemon)
 * [avahi-daemon.conf(5): avahi-daemon config file - Linux man page](https://linux.die.net/man/5/avahi-daemon.conf)
+* [How to Use Avahi to advertise a service](https://sosheskaz.github.io/tutorial/2016/09/26/Avahi-HTTP-Service.html)
+* [Advertising Linux Services via Avahi/Bonjour](https://holyarmy.org/2008/01/advertising-linux-services-via-avahibonjour/)
 * [Difference Between resolve.conf, systemd-resolve, and Avahi | Baeldung on Linux](https://www.baeldung.com/linux/resolve-conf-systemd-avahi)
   4.3. Avahi Services
   The Avahi zeroconf browser will show the various services on our network. Further, we can browse SSH and VNC servers using bssh and bvnc, respectively. Avahi advertises the *.service files found in /etc/avahi/service. Besides, the Avahi user/group should be able to read files in this directory. We can easily create our own if we want to advertise a service without the *.service file. Let’s look at an example of an Avahi file that advertises a regular FTP server – vsftpd:

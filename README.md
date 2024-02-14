@@ -79,7 +79,12 @@ This will execute the hello.py app, after all other startup services have been e
 
 If you have issues with determining if this service is executing properly, use the command `journalctl -b`, to see all boot messages of the *RPi*. You will have to go towards then end (approximately 500+ lines) to see the appropriate lines. Look for the word DEBUG as the *hello.py* application uses logging to print messages.
 #### Installation
-1. `sudo nano /lib/systemd/system/hello.service` then copy/paste contents below into the file:
+1. Create file, copy/paste contents below then exit *nano*.
+    ```bash
+    sudo nano /lib/systemd/system/hello.service
+    ```
+
+    Copy/paste contents below into the file:
     ```bash
     [Unit]
      Description=Hello
@@ -93,7 +98,7 @@ If you have issues with determining if this service is executing properly, use t
      WantedBy=multi-user.target
     ```
 
-2. Exit nano using *Ctrl-S* *Ctrl-X*
+    Exit nano using *Ctrl-S* *Ctrl-X*
 3. Run the following three commands:
     ```bash
       sudo chmod 644 /lib/systemd/system/hello.service
@@ -105,8 +110,9 @@ An example of *ip.txt* in in this repository, the directions to create it on the
 ```bash
 sudo mount /dev/mmcblk0p1 /boot
 sudo nano /boot/ip.txt
-# enter the IP address of your PC WITHOUT a return at the end of the line
-# Exit nano using *Ctrl-S* *Ctrl-X*
+```
+Enter the IP address of your PC WITHOUT a return at the end of the line, then exit nano using *Ctrl-S* *Ctrl-X*. Finally, unmount boot on *RPi*.
+```bash
 sudo umount /boot
 ```
 ### 3. Python server.py app (on Server)

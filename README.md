@@ -168,6 +168,7 @@ Hello from pisan
 ## Notes
 1. If the *RPi* isn't connecting, it might be a problem with startup. Reconnect with the *Pi* locally, using an ethernet or serial connection and use `journalctl -b` to examine the startup log. Changing the *logging to DEBUG* in the *hello.py* application, might help as well.
 1. Implementing the optional solution, allows you to change networks and identify your PC's new IP address. Mount the SD card on your PC and edit /bootfs/ip.txt, replacing the IP address with the new one. Put the SD card back into the *RPi*, run `python server.py` then boot the *RPi*. It will ping your server with its new address.
+1. If you have multiple *RPI*'s and want to confirm which one is which, run `sudo du -h /`, which prints the size of all folders to the screen. This will make the green led light for several seconds.
 
 2. When using *RPi Imager* software, use *Shift-Ctrl-X* to bring up the options screen.
 ## Additional Raspberry Pi Research

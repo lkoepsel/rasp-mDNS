@@ -88,7 +88,8 @@ If you have issues with determining if this service is executing properly, use t
     ```bash
     [Unit]
      Description=Hello
-     After=multi-user.target
+     After=network-online.target
+     Wants=network-online.target
 
      [Service]
      Type=idle

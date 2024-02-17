@@ -1,7 +1,7 @@
 # Raspberry Pi Startup Solution
 
 ## Description
-This is a possible solution for identifying freshly programmed (and headless) *Raspberry Pi (RPI)*'s on a large network. In a large networks (*ex: community college*), the wireless network might have two issues:
+This is a solution for identifying freshly programmed, headless *Raspberry Pi (RPI)*'s on a large network. In large networks (*ex: community college*), the wireless network might have two issues:
 
 1. As network is quite large, it can be difficult to readily identify a *RPi* which has recently joined the network, therefore making it almost impossible to connect to the *RPi*.
 2. The wireless network might also use a blank password, which previously wasn't easily handled by the *Raspberry Pi Imager* software.
@@ -11,7 +11,7 @@ This solution uses version *1.8.3* or later of the *RPi Imager* application to c
 ## Solution
 The solution consists of two steps and an optional backup step:
 
-1. Attempt to connect on startup using the *multicast DNS* service. This uses the existing solution of [*avahi aka zeroconfig or Bonjour*](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns) to connect with the *RPi*. It can work quite well and is the best solution. However, it doesn't always work. And when it doesn't there needs to be a remediation step.
+1. Attempt to connect on startup using the *multicast DNS* service. This uses the existing solution of [*avahi aka zeroconfig or Bonjour*](https://www.raspberrypi.com/documentation/computers/remote-access.html#resolving-raspberrypi-local-with-mdns) to connect with the *RPi*. It can work quite well and is the best solution, however, it doesn't always work. And when it doesn't work, there needs to be a remediation step.
 
     Using the username and hostname you used in programming the SD card with the *Pi Imager* application, try:
     ```bash
@@ -20,10 +20,13 @@ The solution consists of two steps and an optional backup step:
 2. In large networks this might take a while or not work at all. To mitigate this issue, try this command: (*replace hostname with the name you provided when programming the SD card*). This command tends to work faster than attempting to login immediately.
     ```bash
     dns-sd -G v4 hostname.local
+    ```
+    Example Output:
+    ```bash
     DATE: ---Tue 13 Feb 2024---
     16:32:22.348  ...STARTING...
-    Timestamp     A/R  Flags         IF  Hostname                               Address                                      TTL
-    16:32:51.715  Add  2             17  pisan.local.                           192.168.1.6                                  120
+    Timestamp     A/R  Flags IF  Hostname      Address     TTL
+    16:32:51.715  Add  2.    17  pisan.local.  192.168.1.  120
     ```
     Notice that the IP address is provided in the second line of *192.168.1.6*
 
@@ -33,7 +36,7 @@ The solution consists of two steps and an optional backup step:
     # after a warning regarding the "...authenticity of host..." and a few seconds, you will see the CLI prompt.
     ```
 
-**Optional** - An optional insurance step is to utilize this connection to implement an auto-connecting application as a startup application on the *RPi*. This application will ping a local server with its host name and IP address. This ensures you have ready access to the *RPi* without having to go through determing its IP addrss again. This is particularly important when you move to a new network.
+**Optional** - An insurance step is to utilize this connection to implement an auto-connecting application as a startup application on the *RPi*. This application will ping a local server with its host name and IP address. This ensures you have ready access to the *RPi* without having to go through determing its IP addrss again. This is particularly important when you move to a new network.
 
 ## (Optional) Startup Application to Automatically Ping a Server
 These steps will implement a small startup application on the *RPi* which pings a known IP address with its hostname and IP address.  The server's IP address is saved in the *boot* folder of the *RPi* SD card, making it easy to update.
@@ -79,12 +82,16 @@ Create a startup application, which will ping a server by *IP address* and repor
     logging.debug(response.status_code)
     logging.debug(response.text)
     ```
+Once the service is working well, you may change the logging level from DEBUG to ERROR in this line: `level=logging.DEBUG` to stop the messages from appearing in the boot log.
 
 2. Exit nano using *Ctrl-S* *Ctrl-X*
 ### 2. Setup `systemd` unit file for hello.py service
 This will execute the hello.py app, after all other startup services have been executed on the RPi. 
 
-If you have issues with determining if this service is executing properly, use the command `journalctl -b`, to see all boot messages of the *RPi*. You will have to go towards then end (approximately 500+ lines) to see the appropriate lines. Look for the word DEBUG as the *hello.py* application uses logging to print messages.
+If you have issues with determining if this service is executing properly, use the command `journalctl -b`, to see all boot messages of the *RPi*. You will have to go towards then end (approximately 500+ lines) to see the appropriate lines. 
+
+You can use the space bar, to quickly go through screens of lines. Look for the word DEBUG as the *hello.py* application uses logging to print messages.
+
 #### Installation
 1. Create file, copy/paste contents below then exit *nano*. **Be sure to change *username* to what is appropriate for your system.
     ```bash
@@ -178,7 +185,7 @@ Hello from pisan
 192.168.1.76 - - [11/Feb/2024 06:46:41] "POST / HTTP/1.1" 200 -
 ```
 ## Notes
-1. If the *RPi* isn't connecting, it might be a problem with startup. Reconnect with the *Pi* locally, using an ethernet or serial connection and use `journalctl -b` to examine the startup log. Changing the *logging to DEBUG* in the *hello.py* application, might help as well.
+1. If the *RPi* isn't connecting, it might be a problem with startup. Reconnect with the *Pi* use `journalctl -b` to examine the startup log. Changing the *logging to DEBUG* in the *hello.py* application, might help as well.
 1. Implementing the optional solution, allows you to change networks and identify your PC's new IP address. Mount the SD card on your PC and edit /bootfs/ip.txt, replacing the IP address with the new one. Put the SD card back into the *RPi*, run `python server.py` then boot the *RPi*. It will ping your server with its new address.
 1. If you have multiple *RPI*'s and want to confirm which one is which, run `sudo du -h /`, which prints the size of all folders to the screen. This will make the green led light for several seconds.
 

@@ -47,11 +47,13 @@ Create a startup application, which will ping a server by *IP address* and repor
     import requests
     import socket
     import os
+    import sys
 
 
     # set logging to DEBUG, if not showing up
-    logging.basicConfig(level=logging.DEBUG)
-    logging.debug('hello.py: Begin')
+    logging.basicConfig(format='%(filename)s:%(levelname)s: %(message)s',
+                        level=logging.DEBUG)
+    logging.debug('Begin')
 
     os.system("sudo mount /dev/mmcblk0p1 /boot")
     with open("/boot/ip.txt", "r") as f:
@@ -67,7 +69,12 @@ Create a startup application, which will ping a server by *IP address* and repor
 
     data = {'text': text}
 
-    response = requests.post(url, data=data)
+    try:
+        response = requests.post(url, data=data)
+
+    except requests.exceptions.RequestException as e:
+        logging.error(e)
+        sys.exit(1)
 
     logging.debug(response.status_code)
     logging.debug(response.text)
@@ -79,7 +86,7 @@ This will execute the hello.py app, after all other startup services have been e
 
 If you have issues with determining if this service is executing properly, use the command `journalctl -b`, to see all boot messages of the *RPi*. You will have to go towards then end (approximately 500+ lines) to see the appropriate lines. Look for the word DEBUG as the *hello.py* application uses logging to print messages.
 #### Installation
-1. Create file, copy/paste contents below then exit *nano*.
+1. Create file, copy/paste contents below then exit *nano*. **Be sure to change *username* to what is appropriate for your system.
     ```bash
     sudo nano /lib/systemd/system/hello.service
     ```
@@ -87,16 +94,20 @@ If you have issues with determining if this service is executing properly, use t
     Copy/paste contents below into the file:
     ```bash
     [Unit]
-     Description=Hello
-     After=network-online.target
-     Wants=network-online.target
+    Description=Ping a known server (ip.txt) with hostname and IP address
+    After=network-online.target
+    Wants=network-online.target
 
-     [Service]
-     Type=idle
-     ExecStart=/usr/bin/python /home/lkoepsel/hello.py
+    [Service]
+    Type=simple
+    ExecStart=/usr/bin/python /home/username/hello.py
+    Restart=on-failure
+    RestartSec=1
+    StartLimitInterval=0
+    StartLimitBurst=5
 
-     [Install]
-     WantedBy=multi-user.target
+    [Install]
+    WantedBy=multi-user.target
     ```
 
     Exit nano using *Ctrl-S* *Ctrl-X*

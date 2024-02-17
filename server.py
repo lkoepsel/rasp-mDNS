@@ -7,7 +7,7 @@ app = Flask(__name__)
 def print_text():
     text = request.form['text']
     print(text)
-    return 'Text printed'
+    return 'Connection successful'
 
 
 if __name__ == '__main__':
